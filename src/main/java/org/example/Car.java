@@ -1,8 +1,5 @@
 package org.example;
 
-import java.time.Year;
-import java.util.Locale;
-
 public final class Car {
     private final String vin;
     private final String make;
@@ -11,11 +8,27 @@ public final class Car {
     private final Client owner;
 
     public Car(String vin, String make, String model, int year, Client owner) {
-        this.vin = requireText(vin, "VIN cannot be null or blank.");
-        this.make = requireText(make, "Car make cannot be null or blank.");
-        this.model = requireText(model, "Car model cannot be null or blank.");
-        this.year = requireValidYear(year);
-        this.owner = requireNotNull(owner, "Car owner cannot be null.");
+        if (vin == null || vin.isBlank()) {
+            throw new IllegalArgumentException("VIN cannot be null or blank.");
+        }
+        if (make == null || make.isBlank()) {
+            throw new IllegalArgumentException("Make cannot be null or blank.");
+        }
+        if (model == null || model.isBlank()) {
+            throw new IllegalArgumentException("Model cannot be null or blank.");
+        }
+        if (year < 1886) {
+            throw new IllegalArgumentException("Year cannot be earlier than 1886.");
+        }
+        if (owner == null) {
+            throw new IllegalArgumentException("Owner cannot be null.");
+        }
+
+        this.vin = vin;
+        this.make = make;
+        this.model = model;
+        this.year = year;
+        this.owner = owner;
     }
 
     public String getVin() {
@@ -36,53 +49,5 @@ public final class Car {
 
     public Client getOwner() {
         return owner;
-    }
-
-    public boolean hasSameVin(Car other) {
-        Car checkedCar = requireNotNull(other, "Car cannot be null.");
-        return vin.equalsIgnoreCase(checkedCar.vin);
-    }
-
-    @Override
-    public boolean equals(Object object) {
-        if (this == object) {
-            return true;
-        }
-
-        if (!(object instanceof Car other)) {
-            return false;
-        }
-
-        return hasSameVin(other);
-    }
-
-    @Override
-    public int hashCode() {
-        String normalizedVin = vin.toUpperCase(Locale.ROOT);
-        return normalizedVin.hashCode();
-    }
-
-    private static String requireText(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(message);
-        }
-        return value;
-    }
-
-    private static int requireValidYear(int year) {
-        Year currentYear = Year.now();
-        int nextYear = currentYear.getValue() + 1;
-
-        if (year < 1886 || year > nextYear) {
-            throw new IllegalArgumentException("Car year must be between 1886 and " + nextYear + ".");
-        }
-        return year;
-    }
-
-    private static <T> T requireNotNull(T value, String message) {
-        if (value == null) {
-            throw new IllegalArgumentException(message);
-        }
-        return value;
     }
 }
