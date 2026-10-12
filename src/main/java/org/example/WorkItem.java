@@ -4,9 +4,9 @@ import java.math.BigDecimal;
 
 public final class WorkItem {
     private final String description;
-    private final BigDecimal partsCost;
-    private final BigDecimal laborCost;
-    private final WorkStatus status;
+    private BigDecimal partsCost;
+    private BigDecimal laborCost;
+    private WorkStatus status;
 
     public WorkItem(String description, BigDecimal partsCost, BigDecimal laborCost) {
         this(description, partsCost, laborCost, WorkStatus.PENDING);

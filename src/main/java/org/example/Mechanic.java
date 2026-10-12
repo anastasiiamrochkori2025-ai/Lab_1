@@ -2,8 +2,8 @@ package org.example;
 
 public final class Mechanic {
     private final String id;
-    private final String name;
-    private final MechanicSpecialization specialization;
+    private String name;
+    private MechanicSpecialization specialization;
 
     public Mechanic(String id, String name, MechanicSpecialization specialization) {
         if (id == null || id.isBlank()) {

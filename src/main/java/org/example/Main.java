@@ -3,6 +3,7 @@ package org.example;
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public final class Main {
     public static final void main(String[] args) {
@@ -23,6 +24,7 @@ public final class Main {
         serviceStorage.registerMechanic(electricMechanic);
         serviceStorage.registerMechanic(generalMechanic);
 
+        demonstrateSparePartWarehouse();
         demonstrateApprovalWithoutWorks(serviceStorage, car);
         demonstrateStartWithoutMechanic(serviceStorage, car);
         demonstrateDuplicateVin(serviceStorage, client);
@@ -101,6 +103,40 @@ public final class Main {
         demonstrateCancellation(serviceStorage, car);
 
         CarServiceDemo.main();
+    }
+
+    private static final void demonstrateSparePartWarehouse() {
+        PrintStream output = System.out;
+        SparePartWarehouse warehouse = new SparePartWarehouse();
+
+        SparePart oilFilter = new SparePart(
+                "OF-001",
+                "Oil filter",
+                "Bosch",
+                new BigDecimal("450.00")
+        );
+        SparePart brakePads = new SparePart(
+                "BP-002",
+                "Brake pads set",
+                "Brembo",
+                new BigDecimal("2300.00")
+        );
+
+        warehouse.addPart(oilFilter, 12);
+        warehouse.addPart(brakePads, 6);
+        warehouse.issuePart("OF-001", 2);
+
+        output.println("Spare part warehouse demo:");
+        Map<SparePart, Integer> inventory = warehouse.getInventory();
+        for (SparePart part : inventory.keySet()) {
+            String code = part.getCode();
+            String name = part.getName();
+            Integer quantity = inventory.get(part);
+            output.println(code + " - " + name + ": " + quantity + " pcs");
+        }
+
+        BigDecimal totalValue = warehouse.calculateTotalValue();
+        output.println("Warehouse total value: " + totalValue + " UAH");
     }
 
     private static final void demonstrateCancellation(ServiceStorage serviceStorage, Car car) {

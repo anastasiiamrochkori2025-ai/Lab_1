@@ -7,8 +7,8 @@ import java.util.List;
 
 public final class ServiceStorage {
     private final List<Car> cars;
-    private final List<Mechanic> mechanics;
-    private final List<Order> orders;
+    private List<Mechanic> mechanics;
+    private List<Order> orders;
 
     public ServiceStorage() {
         this.cars = new ArrayList<>();
@@ -362,16 +362,10 @@ public final class ServiceStorage {
     }
 
     private void replaceOrder(Order oldOrder, Order newOrder) {
-        List<Order> updatedList = new ArrayList<>();
-        for (Order order : orders) {
-            if (order.getId().equals(oldOrder.getId())) {
-                updatedList.add(newOrder);
-            } else {
-                updatedList.add(order);
-            }
+        int index = this.orders.indexOf(oldOrder);
+        if (index != -1) {
+            this.orders.set(index, newOrder);
         }
-        this.orders.clear();
-        this.orders.addAll(updatedList);
     }
 
     private Order requireRegisteredOrder(Order order) {

@@ -6,10 +6,10 @@ import java.util.List;
 
 public final class Order {
     private final String id;
-    private final Car car;
-    private final List<WorkItem> works;
-    private final Mechanic mechanic;
-    private final OrderStatus status;
+    private Car car;
+    private List<WorkItem> works;
+    private Mechanic mechanic;
+    private OrderStatus status;
 
     public Order(String id, Car car) {
         this(id, car, new ArrayList<>(), null, OrderStatus.CREATED);

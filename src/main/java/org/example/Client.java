@@ -2,8 +2,8 @@ package org.example;
 
 public final class Client {
     private final String id;
-    private final String name;
-    private final String phone;
+    private String name;
+    private String phone;
 
     public Client(String id, String name, String phone) {
         if (id == null || id.isBlank()) {
