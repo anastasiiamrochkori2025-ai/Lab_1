@@ -1,12 +1,12 @@
 package org.example;
 import java.time.Year;
 
-public final class Car {
+public class Car {
     private static final int MIN_VIN_STANDARD_YEAR = 1981;
-    private final String vin;
-    private final String make;
-    private final String model;
-    private final int year;
+    private String vin;
+    private String make;
+    private String model;
+    private int year;
     private Client owner;
 
     public Car(String vin, String make, String model, int year, Client owner) {

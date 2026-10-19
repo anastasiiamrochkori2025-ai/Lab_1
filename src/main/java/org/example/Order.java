@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public final class Order {
-    private final String id;
+public class Order {
+    private String id;
     private Car car;
     private List<WorkItem> works;
     private Mechanic mechanic;

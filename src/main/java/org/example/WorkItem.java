@@ -1,9 +1,10 @@
 package org.example;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
-public final class WorkItem {
-    private final String description;
+public class WorkItem {
+    private String description;
     private BigDecimal partsCost;
     private BigDecimal laborCost;
     private WorkStatus status;
@@ -27,9 +28,13 @@ public final class WorkItem {
         }
 
         this.description = description;
-        this.partsCost = partsCost;
-        this.laborCost = laborCost;
+        this.partsCost = partsCost.setScale(2, RoundingMode.HALF_UP);
+        this.laborCost = laborCost.setScale(2, RoundingMode.HALF_UP);
         this.status = status;
+    }
+
+    public BigDecimal getTotalCost() {
+        return partsCost.add(laborCost).setScale(2, RoundingMode.HALF_UP);
     }
 
     public String getDescription() {

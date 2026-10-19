@@ -5,58 +5,34 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public final class ServiceStorage {
-    private final List<Car> cars;
-    private List<Mechanic> mechanics;
-    private List<Order> orders;
-
-    public ServiceStorage() {
-        this.cars = new ArrayList<>();
-        this.mechanics = new ArrayList<>();
-        this.orders = new ArrayList<>();
-    }
+public class ServiceStorage {
+    private List<Car> cars = new ArrayList<>();
+    private List<Mechanic> mechanics = new ArrayList<>();
+    private List<Order> orders = new ArrayList<>();
 
     public void registerCar(Car car) {
-        if (car == null) {
-            throw new IllegalArgumentException("Car cannot be null.");
-        }
-        boolean registered = hasRegisteredCar(car);
-        if (registered) {
-            String vin = car.getVin();
-            throw new IllegalArgumentException("Car with VIN " + vin + " is already registered.");
+        ensureNotNull(car, "Car cannot be null.");
+        if (hasRegisteredCar(car)) {
+            throw new IllegalArgumentException("Car with VIN " + car.getVin() + " is already registered.");
         }
         cars.add(car);
     }
 
     public void registerMechanic(Mechanic mechanic) {
-        if (mechanic == null) {
-            throw new IllegalArgumentException("Mechanic cannot be null.");
-        }
-        boolean registered = hasRegisteredMechanic(mechanic);
-        if (registered) {
-            String id = mechanic.getId();
-            throw new IllegalArgumentException("Mechanic with id " + id + " is already registered.");
+        ensureNotNull(mechanic, "Mechanic cannot be null.");
+        if (hasRegisteredMechanic(mechanic)) {
+            throw new IllegalArgumentException("Mechanic with id " + mechanic.getId() + " is already registered.");
         }
         mechanics.add(mechanic);
     }
 
     public Order createOrder(String orderId, Car car) {
-        if (orderId == null) {
-            throw new IllegalArgumentException("Order id cannot be null.");
-        }
-        boolean isBlankId = orderId.isBlank();
-        if (isBlankId) {
+        ensureNotNull(orderId, "Order id cannot be null.");
+        if (orderId.isBlank()) {
             throw new IllegalArgumentException("Order id cannot be blank.");
         }
-        if (car == null) {
-            throw new IllegalArgumentException("Car cannot be null.");
-        }
-        boolean carRegistered = hasRegisteredCar(car);
-        if (!carRegistered) {
-            throw new IllegalStateException("Car must be registered before creating an order.");
-        }
-        boolean orderExists = hasOrderWithId(orderId);
-        if (orderExists) {
+        requireRegisteredCar(car);
+        if (hasOrderWithId(orderId)) {
             throw new IllegalArgumentException("Order with id " + orderId + " already exists.");
         }
         Order order = new Order(orderId, car);
@@ -66,128 +42,75 @@ public final class ServiceStorage {
 
     public Order addWorkToOrder(Order order, WorkItem work) {
         Order current = requireRegisteredOrder(order);
-        if (work == null) {
-            throw new IllegalArgumentException("Work item cannot be null.");
-        }
-        OrderStatus status = current.getStatus();
-        if (status == OrderStatus.COMPLETED) {
-            throw new IllegalStateException("Order is completed and cannot be modified.");
-        }
-        if (status == OrderStatus.CANCELLED) {
-            throw new IllegalStateException("Order is cancelled and cannot be modified.");
-        }
-        List<WorkItem> currentWorks = current.getWorks();
-        List<WorkItem> newWorks = new ArrayList<>(currentWorks);
+        ensureNotNull(work, "Work item cannot be null.");
+        ensureOrderModifiable(current);
+
+        List<WorkItem> newWorks = new ArrayList<>(current.getWorks());
         newWorks.add(work);
-        String orderId = current.getId();
-        Car car = current.getCar();
-        Mechanic mechanic = current.getMechanic();
-        Order updated = new Order(orderId, car, newWorks, mechanic, status);
+
+        Order updated = new Order(current.getId(), current.getCar(), newWorks, current.getMechanic(), current.getStatus());
         replaceOrder(current, updated);
         return updated;
     }
 
     public Order diagnoseOrder(Order order) {
         Order current = requireRegisteredOrder(order);
-        OrderStatus status = current.getStatus();
-        if (status != OrderStatus.CREATED) {
-            throw new IllegalStateException("Only a created order can be diagnosed.");
-        }
-        String orderId = current.getId();
-        Car car = current.getCar();
-        List<WorkItem> works = current.getWorks();
-        Mechanic mechanic = current.getMechanic();
-        Order updated = new Order(orderId, car, works, mechanic, OrderStatus.DIAGNOSED);
-        replaceOrder(current, updated);
-        return updated;
+        ensureOrderStatus(current, OrderStatus.CREATED, "Only a created order can be diagnosed.");
+        return updateOrderStatus(current, OrderStatus.DIAGNOSED);
     }
 
     public Order approveOrder(Order order) {
         Order current = requireRegisteredOrder(order);
-        OrderStatus status = current.getStatus();
-        if (status != OrderStatus.DIAGNOSED) {
-            throw new IllegalStateException("Only a diagnosed order can be approved.");
-        }
-        List<WorkItem> works = current.getWorks();
-        boolean empty = works.isEmpty();
-        if (empty) {
+        ensureOrderStatus(current, OrderStatus.DIAGNOSED, "Only a diagnosed order can be approved.");
+        if (current.getWorks().isEmpty()) {
             throw new IllegalStateException("Order cannot be approved without work items.");
         }
-        String orderId = current.getId();
-        Car car = current.getCar();
-        Mechanic mechanic = current.getMechanic();
-        Order updated = new Order(orderId, car, works, mechanic, OrderStatus.APPROVED);
-        replaceOrder(current, updated);
-        return updated;
+        return updateOrderStatus(current, OrderStatus.APPROVED);
     }
 
     public Order assignMechanicToOrder(Order order, Mechanic mechanic) {
         Order current = requireRegisteredOrder(order);
         Mechanic registeredMechanic = requireRegisteredMechanic(mechanic);
-        OrderStatus status = current.getStatus();
-        if (status == OrderStatus.COMPLETED) {
-            throw new IllegalStateException("Order is completed and cannot be modified.");
-        }
-        if (status == OrderStatus.CANCELLED) {
-            throw new IllegalStateException("Order is cancelled and cannot be modified.");
-        }
-        if (status == OrderStatus.IN_PROGRESS) {
+        ensureOrderModifiable(current);
+
+        if (OrderStatus.IN_PROGRESS.equals(current.getStatus())) {
             throw new IllegalStateException("Order is in progress, mechanic reassign is forbidden.");
         }
-        boolean busy = isMechanicBusy(registeredMechanic);
-        if (busy) {
+        if (isMechanicBusy(registeredMechanic)) {
             throw new IllegalStateException("Cannot assign a busy mechanic.");
         }
-        String orderId = current.getId();
-        Car car = current.getCar();
-        List<WorkItem> works = current.getWorks();
-        Order updated = new Order(orderId, car, works, registeredMechanic, status);
+
+        Order updated = new Order(current.getId(), current.getCar(), current.getWorks(), registeredMechanic, current.getStatus());
         replaceOrder(current, updated);
         return updated;
     }
 
     public Order startOrderProgress(Order order) {
         Order current = requireRegisteredOrder(order);
-        OrderStatus status = current.getStatus();
-        if (status != OrderStatus.APPROVED) {
-            throw new IllegalStateException("Only an approved order can be started.");
-        }
-        Mechanic mechanic = current.getMechanic();
-        if (mechanic == null) {
+        ensureOrderStatus(current, OrderStatus.APPROVED, "Only an approved order can be started.");
+        if (current.getMechanic() == null) {
             throw new IllegalStateException("Order cannot be started without an assigned mechanic.");
         }
-        boolean anotherActive = hasAnotherActiveOrderFor(current);
-        if (anotherActive) {
+        if (hasAnotherActiveOrderFor(current)) {
             throw new IllegalStateException("Mechanic cannot have two active orders at the same time.");
         }
-        String orderId = current.getId();
-        Car car = current.getCar();
-        List<WorkItem> works = current.getWorks();
-        Order updated = new Order(orderId, car, works, mechanic, OrderStatus.IN_PROGRESS);
-        replaceOrder(current, updated);
-        return updated;
+        return updateOrderStatus(current, OrderStatus.IN_PROGRESS);
     }
 
     public WorkItem completeWork(WorkItem work) {
-        if (work == null) {
-            throw new IllegalArgumentException("Work item cannot be null.");
-        }
-        WorkStatus currentStatus = work.getStatus();
-        if (currentStatus == WorkStatus.COMPLETED) {
+        ensureNotNull(work, "Work item cannot be null.");
+        if (WorkStatus.COMPLETED.equals(work.getStatus())) {
             throw new IllegalStateException("Work item is already completed.");
         }
+
         String desc = work.getDescription();
-        BigDecimal parts = work.getPartsCost();
-        BigDecimal labor = work.getLaborCost();
-        WorkItem completedWork = new WorkItem(desc, parts, labor, WorkStatus.COMPLETED);
+        WorkItem completedWork = new WorkItem(desc, work.getPartsCost(), work.getLaborCost(), WorkStatus.COMPLETED);
 
         for (Order registeredOrder : orders) {
             List<WorkItem> works = registeredOrder.getWorks();
             boolean contains = false;
             for (WorkItem item : works) {
-                String itemDesc = item.getDescription();
-                boolean match = itemDesc.equals(desc);
-                if (match) {
+                if (desc.equals(item.getDescription())) {
                     contains = true;
                     break;
                 }
@@ -195,19 +118,19 @@ public final class ServiceStorage {
             if (contains) {
                 List<WorkItem> newWorks = new ArrayList<>();
                 for (WorkItem item : works) {
-                    String itemDesc = item.getDescription();
-                    boolean match = itemDesc.equals(desc);
-                    if (match) {
+                    if (desc.equals(item.getDescription())) {
                         newWorks.add(completedWork);
                     } else {
                         newWorks.add(item);
                     }
                 }
-                String orderId = registeredOrder.getId();
-                Car car = registeredOrder.getCar();
-                Mechanic mechanic = registeredOrder.getMechanic();
-                OrderStatus status = registeredOrder.getStatus();
-                Order updatedOrder = new Order(orderId, car, newWorks, mechanic, status);
+                Order updatedOrder = new Order(
+                        registeredOrder.getId(),
+                        registeredOrder.getCar(),
+                        newWorks,
+                        registeredOrder.getMechanic(),
+                        registeredOrder.getStatus()
+                );
                 replaceOrder(registeredOrder, updatedOrder);
             }
         }
@@ -216,69 +139,46 @@ public final class ServiceStorage {
 
     public Order completeOrder(Order order) {
         Order current = requireRegisteredOrder(order);
-        OrderStatus status = current.getStatus();
-        if (status != OrderStatus.IN_PROGRESS) {
-            throw new IllegalStateException("Only an order in progress can be completed.");
-        }
-        List<WorkItem> works = current.getWorks();
-        for (WorkItem work : works) {
-            WorkStatus workStatus = work.getStatus();
-            if (workStatus != WorkStatus.COMPLETED) {
+        ensureOrderStatus(current, OrderStatus.IN_PROGRESS, "Only an order in progress can be completed.");
+        for (WorkItem work : current.getWorks()) {
+            if (!WorkStatus.COMPLETED.equals(work.getStatus())) {
                 throw new IllegalStateException("Order cannot be completed until all work items are completed.");
             }
         }
-        String orderId = current.getId();
-        Car car = current.getCar();
-        Mechanic mechanic = current.getMechanic();
-        Order updated = new Order(orderId, car, works, mechanic, OrderStatus.COMPLETED);
-        replaceOrder(current, updated);
-        return updated;
+        return updateOrderStatus(current, OrderStatus.COMPLETED);
     }
 
     public Order cancelOrder(Order order) {
         Order current = requireRegisteredOrder(order);
         OrderStatus status = current.getStatus();
-        boolean isCreated = status == OrderStatus.CREATED;
-        boolean isDiagnosed = status == OrderStatus.DIAGNOSED;
-        boolean isApproved = status == OrderStatus.APPROVED;
-        if (!isCreated && !isDiagnosed && !isApproved) {
+        boolean canCancel = OrderStatus.CREATED.equals(status)
+                || OrderStatus.DIAGNOSED.equals(status)
+                || OrderStatus.APPROVED.equals(status);
+        if (!canCancel) {
             throw new IllegalStateException("Only created, diagnosed, or approved orders can be cancelled.");
         }
-        String orderId = current.getId();
-        Car car = current.getCar();
-        List<WorkItem> works = current.getWorks();
-        Mechanic mechanic = current.getMechanic();
-        Order updated = new Order(orderId, car, works, mechanic, OrderStatus.CANCELLED);
-        replaceOrder(current, updated);
-        return updated;
+        return updateOrderStatus(current, OrderStatus.CANCELLED);
     }
 
     public BigDecimal calculateTotalCost(Order order) {
         Order current = requireRegisteredOrder(order);
         BigDecimal totalCost = BigDecimal.ZERO;
-        List<WorkItem> works = current.getWorks();
-        for (WorkItem work : works) {
-            BigDecimal partsCost = work.getPartsCost();
-            BigDecimal laborCost = work.getLaborCost();
-            BigDecimal workCost = partsCost.add(laborCost);
-            totalCost = totalCost.add(workCost);
+        for (WorkItem work : current.getWorks()) {
+            totalCost = totalCost.add(work.getPartsCost().add(work.getLaborCost()));
         }
         return totalCost;
     }
 
     public List<Car> getRegisteredCars() {
-        List<Car> registeredCars = new ArrayList<>(cars);
-        return Collections.unmodifiableList(registeredCars);
+        return Collections.unmodifiableList(new ArrayList<>(cars));
     }
 
     public List<Mechanic> getMechanics() {
-        List<Mechanic> registeredMechanics = new ArrayList<>(mechanics);
-        return Collections.unmodifiableList(registeredMechanics);
+        return Collections.unmodifiableList(new ArrayList<>(mechanics));
     }
 
     public List<Order> getOrders() {
-        List<Order> registeredOrders = new ArrayList<>(orders);
-        return Collections.unmodifiableList(registeredOrders);
+        return Collections.unmodifiableList(new ArrayList<>(orders));
     }
 
     public boolean hasRegisteredCar(Car car) {
@@ -287,9 +187,7 @@ public final class ServiceStorage {
         }
         String targetVin = car.getVin();
         for (Car registeredCar : cars) {
-            String existingVin = registeredCar.getVin();
-            boolean match = existingVin.equalsIgnoreCase(targetVin);
-            if (match) {
+            if (targetVin.equalsIgnoreCase(registeredCar.getVin())) {
                 return true;
             }
         }
@@ -302,9 +200,7 @@ public final class ServiceStorage {
         }
         String targetId = mechanic.getId();
         for (Mechanic registeredMechanic : mechanics) {
-            String existingId = registeredMechanic.getId();
-            boolean match = existingId.equals(targetId);
-            if (match) {
+            if (targetId.equals(registeredMechanic.getId())) {
                 return true;
             }
         }
@@ -316,12 +212,9 @@ public final class ServiceStorage {
             return false;
         }
         for (Order registeredOrder : orders) {
-            Mechanic assigned = registeredOrder.getMechanic();
-            if (assigned == mechanic) {
-                OrderStatus status = registeredOrder.getStatus();
-                if (status == OrderStatus.IN_PROGRESS) {
-                    return true;
-                }
+            if (isSameMechanic(registeredOrder.getMechanic(), mechanic)
+                    && OrderStatus.IN_PROGRESS.equals(registeredOrder.getStatus())) {
+                return true;
             }
         }
         return false;
@@ -329,9 +222,7 @@ public final class ServiceStorage {
 
     private boolean hasOrderWithId(String orderId) {
         for (Order registeredOrder : orders) {
-            String existingId = registeredOrder.getId();
-            boolean match = existingId.equals(orderId);
-            if (match) {
+            if (orderId.equals(registeredOrder.getId())) {
                 return true;
             }
         }
@@ -345,17 +236,12 @@ public final class ServiceStorage {
         }
         String currentId = order.getId();
         for (Order registeredOrder : orders) {
-            String existingId = registeredOrder.getId();
-            boolean sameOrder = existingId.equals(currentId);
-            if (sameOrder) {
+            if (currentId.equals(registeredOrder.getId())) {
                 continue;
             }
-            Mechanic assigned = registeredOrder.getMechanic();
-            if (assigned == mechanic) {
-                OrderStatus status = registeredOrder.getStatus();
-                if (status == OrderStatus.IN_PROGRESS) {
-                    return true;
-                }
+            if (isSameMechanic(registeredOrder.getMechanic(), mechanic)
+                    && OrderStatus.IN_PROGRESS.equals(registeredOrder.getStatus())) {
+                return true;
             }
         }
         return false;
@@ -369,29 +255,68 @@ public final class ServiceStorage {
     }
 
     private Order requireRegisteredOrder(Order order) {
-        if (order == null) {
-            throw new IllegalArgumentException("Order cannot be null.");
-        }
+        ensureNotNull(order, "Order cannot be null.");
         String orderId = order.getId();
         for (Order registeredOrder : orders) {
-            String regId = registeredOrder.getId();
-            boolean match = regId.equals(orderId);
-            if (match) {
+            if (orderId.equals(registeredOrder.getId())) {
                 return registeredOrder;
             }
         }
         throw new IllegalStateException("Order must be registered in this service storage.");
     }
 
-    private Mechanic requireRegisteredMechanic(Mechanic mechanic) {
-        if (mechanic == null) {
-            throw new IllegalArgumentException("Mechanic cannot be null.");
+    private Car requireRegisteredCar(Car car) {
+        ensureNotNull(car, "Car cannot be null.");
+        for (Car registeredCar : cars) {
+            if (registeredCar.getVin().equalsIgnoreCase(car.getVin())) {
+                return registeredCar;
+            }
         }
+        throw new IllegalStateException("Car must be registered before creating an order.");
+    }
+
+    private Mechanic requireRegisteredMechanic(Mechanic mechanic) {
+        ensureNotNull(mechanic, "Mechanic cannot be null.");
         for (Mechanic registeredMechanic : mechanics) {
-            if (registeredMechanic == mechanic) {
+            if (isSameMechanic(registeredMechanic, mechanic)) {
                 return registeredMechanic;
             }
         }
         throw new IllegalStateException("Mechanic must be registered in this service storage.");
+    }
+
+    private void ensureNotNull(Object obj, String message) {
+        if (obj == null) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    private void ensureOrderModifiable(Order order) {
+        OrderStatus status = order.getStatus();
+        if (OrderStatus.COMPLETED.equals(status)) {
+            throw new IllegalStateException("Order is completed and cannot be modified.");
+        }
+        if (OrderStatus.CANCELLED.equals(status)) {
+            throw new IllegalStateException("Order is cancelled and cannot be modified.");
+        }
+    }
+
+    private void ensureOrderStatus(Order order, OrderStatus expectedStatus, String errorMessage) {
+        if (!expectedStatus.equals(order.getStatus())) {
+            throw new IllegalStateException(errorMessage);
+        }
+    }
+
+    private Order updateOrderStatus(Order current, OrderStatus newStatus) {
+        Order updated = new Order(current.getId(), current.getCar(), current.getWorks(), current.getMechanic(), newStatus);
+        replaceOrder(current, updated);
+        return updated;
+    }
+
+    private boolean isSameMechanic(Mechanic m1, Mechanic m2) {
+        if (m1 == null || m2 == null) {
+            return false;
+        }
+        return m1.getId().equals(m2.getId());
     }
 }

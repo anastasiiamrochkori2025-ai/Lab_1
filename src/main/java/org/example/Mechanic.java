@@ -1,7 +1,7 @@
 package org.example;
 
-public final class Mechanic {
-    private final String id;
+public class Mechanic {
+    private String id;
     private String name;
     private MechanicSpecialization specialization;
 

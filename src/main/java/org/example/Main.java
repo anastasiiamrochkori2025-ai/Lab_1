@@ -1,604 +1,120 @@
 package org.example;
 
-import java.io.PrintStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
-import java.util.Map;
 
-public final class Main {
-    public static final void main(String[] args) {
-        PrintStream output = System.out;
-        ServiceStorage serviceStorage = new ServiceStorage();
+public class Main {
+    public static void main(String[] args) {
+        // 1. Pure Dependency Injection (ручне збирання залежностей без фреймворків)
+        RepairOrderRepository repository = new InMemoryRepairOrderRepository();
+        BigDecimal minimumTariff = new BigDecimal("300.00");
+        PricingPolicy pricingPolicy = new StandardPricingPolicy(minimumTariff);
+        RepairOrderService service = new RepairOrderService(repository, pricingPolicy);
 
-        Client client = new Client("C-001", "Ivan Petrenko", "+380501112233");
-        Car car = new Car("WAUZZZ8K9DA123456", "Audi", "A4", 2018, client);
-
-        Mechanic engineMechanic = new Mechanic("M-001", "Oleh Shevchenko", MechanicSpecialization.ENGINE);
-        Mechanic diagMechanic = new Mechanic("M-002", "Vasyl Sydorenko", MechanicSpecialization.DIAGNOSTICS);
-        Mechanic electricMechanic = new Mechanic("M-003", "Andrii Kravets", MechanicSpecialization.ELECTRICAL);
-        Mechanic generalMechanic = new Mechanic("M-004", "Dmytro Boyko", MechanicSpecialization.GENERAL);
-
-        serviceStorage.registerCar(car);
-        serviceStorage.registerMechanic(engineMechanic);
-        serviceStorage.registerMechanic(diagMechanic);
-        serviceStorage.registerMechanic(electricMechanic);
-        serviceStorage.registerMechanic(generalMechanic);
-
-        demonstrateSparePartWarehouse();
-        demonstrateApprovalWithoutWorks(serviceStorage, car);
-        demonstrateStartWithoutMechanic(serviceStorage, car);
-        demonstrateDuplicateVin(serviceStorage, client);
-
-        Order order = serviceStorage.createOrder("O-001", car);
-        BigDecimal diagParts = new BigDecimal("0.00");
-        BigDecimal diagLabor = new BigDecimal("900.00");
-        WorkItem diagnostics = new WorkItem("Engine diagnostics", diagParts, diagLabor);
-
-        BigDecimal oilParts = new BigDecimal("1800.00");
-        BigDecimal oilLabor = new BigDecimal("700.00");
-        WorkItem oilChange = new WorkItem("Oil and filter replacement", oilParts, oilLabor);
-
-        order = serviceStorage.diagnoseOrder(order);
-        order = serviceStorage.addWorkToOrder(order, diagnostics);
-        order = serviceStorage.addWorkToOrder(order, oilChange);
-        order = serviceStorage.approveOrder(order);
-        order = serviceStorage.assignMechanicToOrder(order, engineMechanic);
-        order = serviceStorage.startOrderProgress(order);
-
-        demonstrateCompletionWithPendingWorks(serviceStorage, order);
-
-        String diagDesc = diagnostics.getDescription();
-        BigDecimal currentDiagParts = diagnostics.getPartsCost();
-        BigDecimal currentDiagLabor = diagnostics.getLaborCost();
-        WorkStatus diagStatus = diagnostics.getStatus();
-        output.println("Work: " + diagDesc + " (parts: " + currentDiagParts + ", labor: " + currentDiagLabor + ") - " + diagStatus);
-
-        diagnostics = serviceStorage.completeWork(diagnostics);
-        oilChange = serviceStorage.completeWork(oilChange);
-        order = serviceStorage.completeOrder(order);
-
-        String orderId = order.getId();
-        OrderStatus finalStatus = order.getStatus();
-        output.println("Order " + orderId + " status: " + finalStatus);
-
-        Car orderCar = order.getCar();
-        String make = orderCar.getMake();
-        String model = orderCar.getModel();
-        int year = orderCar.getYear();
-        output.println("Car: " + make + " " + model + ", Year: " + year);
-
-        Client owner = orderCar.getOwner();
-        String ownerId = owner.getId();
-        String ownerName = owner.getName();
-        String ownerPhone = owner.getPhone();
-        output.println("Owner ID: " + ownerId + ", Name: " + ownerName + " (" + ownerPhone + ")");
-
-        Mechanic mechanicFromOrder = order.getMechanic();
-        String mechanicName = mechanicFromOrder.getName();
-        MechanicSpecialization spec = mechanicFromOrder.getSpecialization();
-        output.println("Mechanic: " + mechanicName + " [" + spec + "]");
-
-        List<WorkItem> worksList = order.getWorks();
-        int worksCount = worksList.size();
-        output.println("Works count: " + worksCount);
-
-        OrderStatus orderStatus = order.getStatus();
-        output.println("Current status: " + orderStatus);
-
-        BigDecimal totalCost = serviceStorage.calculateTotalCost(order);
-        output.println("Total cost: " + totalCost + " UAH");
-
-        List<Car> registeredCars = serviceStorage.getRegisteredCars();
-        int registeredCarsCount = registeredCars.size();
-        output.println("Registered cars in service: " + registeredCarsCount);
-
-        List<Mechanic> mechanicsList = serviceStorage.getMechanics();
-        int mechanicsCount = mechanicsList.size();
-        output.println("Registered mechanics in service: " + mechanicsCount);
-
-        List<Order> ordersList = serviceStorage.getOrders();
-        int ordersCount = ordersList.size();
-        output.println("Total orders in storage: " + ordersCount);
-
-        demonstrateCancellation(serviceStorage, car);
-
-        CarServiceDemo.main();
-    }
-
-    private static final void demonstrateSparePartWarehouse() {
-        PrintStream output = System.out;
-        SparePartWarehouse warehouse = new SparePartWarehouse();
-
-        SparePart oilFilter = new SparePart(
-                "OF-001",
-                "Oil filter",
-                "Bosch",
-                new BigDecimal("450.00")
-        );
-        SparePart brakePads = new SparePart(
-                "BP-002",
-                "Brake pads set",
-                "Brembo",
-                new BigDecimal("2300.00")
-        );
-
-        warehouse.addPart(oilFilter, 12);
-        warehouse.addPart(brakePads, 6);
-        warehouse.issuePart("OF-001", 2);
-
-        output.println("Spare part warehouse demo:");
-        Map<SparePart, Integer> inventory = warehouse.getInventory();
-        for (SparePart part : inventory.keySet()) {
-            String code = part.getCode();
-            String name = part.getName();
-            Integer quantity = inventory.get(part);
-            output.println(code + " - " + name + ": " + quantity + " pcs");
-        }
-
-        BigDecimal totalValue = warehouse.calculateTotalValue();
-        output.println("Warehouse total value: " + totalValue + " UAH");
-    }
-
-    private static final void demonstrateCancellation(ServiceStorage serviceStorage, Car car) {
-        PrintStream output = System.out;
-        Order cancelOrder = serviceStorage.createOrder("O-CANCEL-1", car);
-        cancelOrder = serviceStorage.cancelOrder(cancelOrder);
-        String id = cancelOrder.getId();
-        OrderStatus status = cancelOrder.getStatus();
-        output.println("Cancellation demo: Order " + id + " is now " + status);
-    }
-
-    private static final void demonstrateApprovalWithoutWorks(ServiceStorage serviceStorage, Car car) {
-        PrintStream output = System.out;
-        try {
-            Order invalidOrder = serviceStorage.createOrder("O-INVALID-1", car);
-            invalidOrder = serviceStorage.diagnoseOrder(invalidOrder);
-            serviceStorage.approveOrder(invalidOrder);
-        } catch (IllegalStateException exception) {
-            String message = exception.getMessage();
-            output.println("Approval protection: " + message);
-        }
-    }
-
-    private static final void demonstrateStartWithoutMechanic(ServiceStorage serviceStorage, Car car) {
-        PrintStream output = System.out;
-        try {
-            Order invalidOrder = serviceStorage.createOrder("O-INVALID-2", car);
-            invalidOrder = serviceStorage.diagnoseOrder(invalidOrder);
-            BigDecimal partsCost = new BigDecimal("0.00");
-            BigDecimal laborCost = new BigDecimal("500.00");
-            WorkItem brakeInspection = new WorkItem("Brake inspection", partsCost, laborCost);
-            invalidOrder = serviceStorage.addWorkToOrder(invalidOrder, brakeInspection);
-            invalidOrder = serviceStorage.approveOrder(invalidOrder);
-            serviceStorage.startOrderProgress(invalidOrder);
-        } catch (IllegalStateException exception) {
-            String message = exception.getMessage();
-            output.println("Start protection: " + message);
-        }
-    }
-
-    private static final void demonstrateCompletionWithPendingWorks(ServiceStorage serviceStorage, Order order) {
-        PrintStream output = System.out;
-        try {
-            serviceStorage.completeOrder(order);
-        } catch (IllegalStateException exception) {
-            String message = exception.getMessage();
-            output.println("Completion protection: " + message);
-        }
-    }
-
-    private static final void demonstrateDuplicateVin(ServiceStorage serviceStorage, Client client) {
-        PrintStream output = System.out;
-        try {
-            Car duplicateCar = new Car("WAUZZZ8K9DA123456", "Audi", "A4", 2018, client);
-            serviceStorage.registerCar(duplicateCar);
-        } catch (IllegalArgumentException exception) {
-            String message = exception.getMessage();
-            output.println("VIN protection: " + message);
-        }
-    }
-}
-
-final class CarServiceDemo {
-    public static final void main() {
-        PrintStream output = System.out;
-
-        printHeader(output, "CAR SERVICE DOMAIN MODEL DEMO");
-        runPositiveScenario(output);
-        runApproveWithoutWorksScenario(output);
-        runStartWithoutMechanicScenario(output);
-        runAssignBusyMechanicScenario(output);
-        runIsCompletedOrderScenario(output);
-        runIsCanceledOrderScenario(output);
-        runUnauthorizedTransitionScenario(output);
-    }
-
-    private static final void runPositiveScenario(PrintStream output) {
-        printHeader(output, "1. POSITIVE SCENARIO");
-
-        ServiceStorage serviceStorage = new ServiceStorage();
-
+        // 2. Створення доменних сутностей: Клієнт (зі знижкою 10%) та Автомобіль
         Client client = new Client(
-                "C-001",
-                "Ivan Petrenko",
-                "+380501112233"
+                "C-101",
+                "Олександр Мельник",
+                "+380501234567",
+                new BigDecimal("10.00")
         );
-
         Car car = new Car(
-                "WAUZZZ8K9DA123456",
-                "Audi",
-                "A4",
-                2018,
+                "1HGCR2F83HA123456",
+                "Honda",
+                "Accord",
+                2020,
                 client
         );
 
-        Mechanic mechanic = new Mechanic(
-                "M-001",
-                "Oleh Shevchenko",
-                MechanicSpecialization.ENGINE
-        );
+        // 3. Створення замовлення та додавання позицій робіт і деталей
+        RepairOrder order = new RepairOrder("RO-2026-001", car, client);
 
-        serviceStorage.registerCar(car);
-        output.println("Client and car registered.");
+        order.addWork(new WorkItem("Комп'ютерна діагностика", new BigDecimal("0.00"), new BigDecimal("500.00")));
+        order.addWork(new WorkItem("Заміна передніх гальмівних колодок", new BigDecimal("0.00"), new BigDecimal("600.00")));
+        order.addWork(new WorkItem("Заміна моторного масла та фільтра", new BigDecimal("0.00"), new BigDecimal("400.00")));
 
-        serviceStorage.registerMechanic(mechanic);
-        output.println("Mechanic registered.");
+        order.addSparePart(new SparePart("BP-204", "Гальмівні колодки передні", "Brembo", new BigDecimal("1850.00")));
+        order.addSparePart(new SparePart("OIL-5W30", "Моторне масло 5W-30 (4л)", "Motul", new BigDecimal("1450.00")));
+        order.addSparePart(new SparePart("OF-112", "Масляний фільтр", "Mann", new BigDecimal("350.00")));
 
-        Order order = serviceStorage.createOrder(
-                "O-001",
-                car
-        );
-        printState(output, "Order created", order);
+        // Реєстрація нового замовлення в сервісі
+        service.saveOrder(order);
 
-        BigDecimal diagParts = new BigDecimal("0.00");
-        BigDecimal diagLabor = new BigDecimal("900.00");
-        WorkItem engineDiagnostics = new WorkItem(
-                "Engine diagnostics",
-                diagParts,
-                diagLabor
-        );
+        // 4. Виклик сервісу для повного розрахунку та закриття замовлення
+        OrderCheckoutResult checkoutResult = service.checkoutOrder("RO-2026-001");
+        RepairOrder completedOrder = checkoutResult.getOrder();
+        BigDecimal finalPrice = checkoutResult.getFinalPrice();
 
-        BigDecimal oilParts = new BigDecimal("1800.00");
-        BigDecimal oilLabor = new BigDecimal("700.00");
-        WorkItem oilReplacement = new WorkItem(
-                "Oil and filter replacement",
-                oilParts,
-                oilLabor
-        );
-
-        order = serviceStorage.diagnoseOrder(order);
-        printState(output, "After diagnosis", order);
-
-        order = serviceStorage.addWorkToOrder(order, engineDiagnostics);
-        output.println("Work added: Engine diagnostics.");
-
-        order = serviceStorage.addWorkToOrder(order, oilReplacement);
-        output.println("Work added: Oil and filter replacement.");
-
-        order = serviceStorage.approveOrder(order);
-        printState(output, "After approval", order);
-
-        order = serviceStorage.assignMechanicToOrder(
-                order,
-                mechanic
-        );
-        output.println("Mechanic assigned: Oleh Shevchenko.");
-
-        order = serviceStorage.startOrderProgress(order);
-        printState(output, "After work start", order);
-
-        engineDiagnostics = serviceStorage.completeWork(engineDiagnostics);
-        output.println("Work completed: Engine diagnostics.");
-
-        oilReplacement = serviceStorage.completeWork(oilReplacement);
-        output.println("Work completed: Oil and filter replacement.");
-
-        order = serviceStorage.completeOrder(order);
-        printState(output, "After order completion", order);
-
-        BigDecimal finalCost = serviceStorage.calculateTotalCost(order);
-        String orderId = order.getId();
-        OrderStatus finalStatus = order.getStatus();
-
-        output.println("Positive scenario completed successfully.");
-        output.println("Order " + orderId + " status: " + finalStatus);
-        output.println("Final cost: " + finalCost + " UAH");
-    }
-
-    private static final void runApproveWithoutWorksScenario(PrintStream output) {
-        printHeader(output, "2. NEGATIVE: APPROVE WITHOUT WORKS");
-
-        try {
-            ServiceStorage serviceStorage = new ServiceStorage();
-            Client client = createClient("C-002");
-            Car car = createCar("WAUZZZ8K9DA223456", client);
-
-            serviceStorage.registerCar(car);
-
-            Order order = serviceStorage.createOrder(
-                    "O-002",
-                    car
-            );
-
-            printState(output, "Order created", order);
-
-            order = serviceStorage.diagnoseOrder(order);
-            printState(output, "After diagnosis", order);
-
-            output.println("Trying to approve without any work items...");
-            serviceStorage.approveOrder(order);
-        } catch (RuntimeException exception) {
-            printError(output, exception);
+        // 5. Розрахунок аналітики для структурованого чека
+        BigDecimal totalWorksCost = BigDecimal.ZERO;
+        for (WorkItem work : completedOrder.getWorks()) {
+            totalWorksCost = totalWorksCost.add(work.getPartsCost()).add(work.getLaborCost());
         }
-    }
+        totalWorksCost = totalWorksCost.setScale(2, RoundingMode.HALF_UP);
 
-    private static final void runStartWithoutMechanicScenario(PrintStream output) {
-        printHeader(output, "3. NEGATIVE: START WITHOUT MECHANIC");
-
-        try {
-            ServiceStorage serviceStorage = new ServiceStorage();
-            Client client = createClient("C-003");
-            Car car = createCar("WAUZZZ8K9DA323456", client);
-
-            serviceStorage.registerCar(car);
-
-            Order order = serviceStorage.createOrder(
-                    "O-003",
-                    car
-            );
-
-            BigDecimal parts = new BigDecimal("0.00");
-            BigDecimal labor = new BigDecimal("600.00");
-            WorkItem diagnostics = new WorkItem(
-                    "Computer diagnostics",
-                    parts,
-                    labor
-            );
-
-            order = serviceStorage.diagnoseOrder(order);
-            order = serviceStorage.addWorkToOrder(order, diagnostics);
-            order = serviceStorage.approveOrder(order);
-            printState(output, "Approved order without assigned mechanic", order);
-
-            output.println("Trying to start order progress...");
-            serviceStorage.startOrderProgress(order);
-        } catch (RuntimeException exception) {
-            printError(output, exception);
+        BigDecimal totalPartsCost = BigDecimal.ZERO;
+        for (SparePart part : completedOrder.getSpareParts()) {
+            totalPartsCost = totalPartsCost.add(part.getPrice());
         }
+        totalPartsCost = totalPartsCost.setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal basePrice = completedOrder.calculateBasePrice();
+        BigDecimal discountAmount = basePrice.subtract(finalPrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+
+        // 6. Виведення структурованого чека в консоль
+        printReceipt(completedOrder, totalWorksCost, totalPartsCost, basePrice, discountAmount, finalPrice, minimumTariff);
     }
 
-    private static final void runAssignBusyMechanicScenario(PrintStream output) {
-        printHeader(output, "4. NEGATIVE: ASSIGN BUSY MECHANIC");
-
-        try {
-            ServiceStorage serviceStorage = new ServiceStorage();
-            Client client = createClient("C-004");
-            Car car = createCar("WAUZZZ8K9DA423456", client);
-            Mechanic mechanic = createMechanic("M-004");
-
-            serviceStorage.registerCar(car);
-            serviceStorage.registerMechanic(mechanic);
-
-            Order activeOrder = createApprovedOrder(
-                    serviceStorage,
-                    "O-004-A",
-                    car,
-                    "Engine repair"
-            );
-
-            activeOrder = serviceStorage.assignMechanicToOrder(
-                    activeOrder,
-                    mechanic
-            );
-
-            activeOrder = serviceStorage.startOrderProgress(activeOrder);
-            printState(output, "First order is active", activeOrder);
-
-            Order secondOrder = createApprovedOrder(
-                    serviceStorage,
-                    "O-004-B",
-                    car,
-                    "Suspension check"
-            );
-
-            printState(output, "Second order is ready for mechanic", secondOrder);
-
-            output.println("Trying to assign the same busy mechanic...");
-            serviceStorage.assignMechanicToOrder(
-                    secondOrder,
-                    mechanic
-            );
-        } catch (RuntimeException exception) {
-            printError(output, exception);
-        }
-    }
-
-    private static final void runIsCompletedOrderScenario(PrintStream output) {
-        printHeader(output, "5. NEGATIVE: IS COMPLETED ORDER IMMUTABLE");
-
-        try {
-            ServiceStorage serviceStorage = new ServiceStorage();
-            Client client = createClient("C-005");
-            Car car = createCar("WAUZZZ8K9DA523456", client);
-            Mechanic mechanic = createMechanic("M-005");
-
-            serviceStorage.registerCar(car);
-            serviceStorage.registerMechanic(mechanic);
-
-            Order order = createCompletedOrder(
-                    serviceStorage,
-                    "O-005",
-                    car,
-                    mechanic
-            );
-
-            printState(output, "Completed order", order);
-
-            output.println("Trying to cancel an already completed order...");
-            serviceStorage.cancelOrder(order);
-        } catch (RuntimeException exception) {
-            printError(output, exception);
-        }
-    }
-
-    private static final void runIsCanceledOrderScenario(PrintStream output) {
-        printHeader(output, "6. NEGATIVE: IS CANCELED ORDER IMMUTABLE");
-
-        try {
-            ServiceStorage serviceStorage = new ServiceStorage();
-            Client client = createClient("C-006");
-            Car car = createCar("WAUZZZ8K9DA623456", client);
-
-            serviceStorage.registerCar(car);
-
-            Order order = serviceStorage.createOrder(
-                    "O-006",
-                    car
-            );
-
-            printState(output, "Order before cancellation", order);
-
-            order = serviceStorage.cancelOrder(order);
-            printState(output, "Canceled order", order);
-
-            BigDecimal parts = new BigDecimal("300.00");
-            BigDecimal labor = new BigDecimal("400.00");
-            WorkItem work = new WorkItem(
-                    "Body polishing",
-                    parts,
-                    labor
-            );
-
-            output.println("Trying to add work to a canceled order...");
-            serviceStorage.addWorkToOrder(order, work);
-        } catch (RuntimeException exception) {
-            printError(output, exception);
-        }
-    }
-
-    private static final void runUnauthorizedTransitionScenario(PrintStream output) {
-        printHeader(output, "7. NEGATIVE: UNAUTHORIZED STATUS TRANSITION");
-
-        try {
-            ServiceStorage serviceStorage = new ServiceStorage();
-            Client client = createClient("C-007");
-            Car car = createCar("WAUZZZ8K9DA723456", client);
-
-            serviceStorage.registerCar(car);
-
-            Order order = serviceStorage.createOrder(
-                    "O-007",
-                    car
-            );
-
-            printState(output, "Order is still created", order);
-
-            output.println("Trying to complete immediately from CREATED...");
-            serviceStorage.completeOrder(order);
-        } catch (RuntimeException exception) {
-            printError(output, exception);
-        }
-    }
-
-    private static final Order createApprovedOrder(
-            ServiceStorage serviceStorage,
-            String orderId,
-            Car car,
-            String workDescription
+    private static void printReceipt(
+            RepairOrder order,
+            BigDecimal totalWorksCost,
+            BigDecimal totalPartsCost,
+            BigDecimal basePrice,
+            BigDecimal discountAmount,
+            BigDecimal finalPrice,
+            BigDecimal minimumTariff
     ) {
-        Order order = serviceStorage.createOrder(
-                orderId,
-                car
+        System.out.println("================================================================================");
+        System.out.println("                            СТО \"АВТОСЕРВІС ЕКСПРЕС\"                            ");
+        System.out.println("                                 ФІСКАЛЬНИЙ ЧЕК                                 ");
+        System.out.println("================================================================================");
+        System.out.printf("Замовлення №:   %s%n", order.getId());
+        System.out.printf("Статус:         %s%n", order.getStatus());
+        System.out.printf("Клієнт:         %s (тел. %s)%n", order.getClient().getName(), order.getClient().getPhone());
+        System.out.printf("Знижка клієнта: %s%%%n", order.getClient().getDiscountPercentage());
+        System.out.printf("Автомобіль:     %s %s (%d р.), VIN: %s%n",
+                order.getCar().getMake(),
+                order.getCar().getModel(),
+                order.getCar().getYear(),
+                order.getCar().getVin()
         );
-
-        BigDecimal parts = new BigDecimal("500.00");
-        BigDecimal labor = new BigDecimal("700.00");
-        WorkItem work = new WorkItem(
-                workDescription,
-                parts,
-                labor
-        );
-
-        order = serviceStorage.diagnoseOrder(order);
-        order = serviceStorage.addWorkToOrder(order, work);
-        order = serviceStorage.approveOrder(order);
-
-        return order;
-    }
-
-    private static final Order createCompletedOrder(
-            ServiceStorage serviceStorage,
-            String orderId,
-            Car car,
-            Mechanic mechanic
-    ) {
-        Order order = createApprovedOrder(
-                serviceStorage,
-                orderId,
-                car,
-                "Planned maintenance"
-        );
-
-        order = serviceStorage.assignMechanicToOrder(
-                order,
-                mechanic
-        );
-
-        order = serviceStorage.startOrderProgress(order);
-
+        System.out.println("--------------------------------------------------------------------------------");
+        System.out.println("ВИКОНАНІ РОБОТИ:");
         List<WorkItem> works = order.getWorks();
-        for (WorkItem work : works) {
-            serviceStorage.completeWork(work);
+        for (int i = 0; i < works.size(); i++) {
+            WorkItem work = works.get(i);
+            BigDecimal cost = work.getPartsCost().add(work.getLaborCost()).setScale(2, RoundingMode.HALF_UP);
+            System.out.printf("  %2d. %-58s %12s грн%n", (i + 1), work.getDescription(), cost);
         }
-
-        order = serviceStorage.completeOrder(order);
-
-        return order;
-    }
-
-    private static final Client createClient(String id) {
-        return new Client(
-                id,
-                "Test Client",
-                "+380501112233"
-        );
-    }
-
-    private static final Car createCar(String vin, Client client) {
-        return new Car(
-                vin,
-                "Audi",
-                "A4",
-                2018,
-                client
-        );
-    }
-
-    private static final Mechanic createMechanic(String id) {
-        return new Mechanic(
-                id,
-                "Test Mechanic",
-                MechanicSpecialization.GENERAL
-        );
-    }
-
-    private static final void printHeader(PrintStream output, String title) {
-        output.println();
-        output.println("============================================================");
-        output.println(title);
-        output.println("============================================================");
-    }
-
-    private static final void printState(PrintStream output, String label, Order order) {
-        OrderStatus status = order.getStatus();
-
-        output.println(label + ": " + status);
-    }
-
-    private static final void printError(PrintStream output, RuntimeException exception) {
-        String message = exception.getMessage();
-
-        output.println("Expected error: " + message);
-        output.println("Application continues.");
+        System.out.printf("  %-62s %12s грн%n", "РАЗОМ ЗА РОБОТИ:", totalWorksCost);
+        System.out.println("--------------------------------------------------------------------------------");
+        System.out.println("ВИКОРИСТАНІ ДЕТАЛІ ТА МАТЕРІАЛИ:");
+        List<SparePart> parts = order.getSpareParts();
+        for (int i = 0; i < parts.size(); i++) {
+            SparePart part = parts.get(i);
+            String partInfo = part.getName() + " (" + part.getManufacturer() + ", " + part.getCode() + ")";
+            System.out.printf("  %2d. %-58s %12s грн%n", (i + 1), partInfo, part.getPrice());
+        }
+        System.out.printf("  %-62s %12s грн%n", "РАЗОМ ЗА ДЕТАЛІ:", totalPartsCost);
+        System.out.println("--------------------------------------------------------------------------------");
+        System.out.printf("Базова вартість робіт:                                        %12s грн%n", totalWorksCost);
+        System.out.printf("Базова вартість деталей:                                      %12s грн%n", totalPartsCost);
+        System.out.printf("Загальна базова вартість замовлення:                          %12s грн%n", basePrice);
+        System.out.printf("Застосована персональна знижка:                              -%12s грн%n", discountAmount);
+        System.out.printf("Поріг мінімальної вартості замовлення (тариф):                %12s грн%n", minimumTariff);
+        System.out.println("--------------------------------------------------------------------------------");
+        System.out.printf("ПІДСУМКОВА СУМА ДО ОПЛАТИ:                                    %12s грн%n", finalPrice);
+        System.out.println("================================================================================");
     }
 }
