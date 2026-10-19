@@ -36,11 +36,8 @@ public class InMemoryRepairOrderRepository implements RepairOrderRepository {
             throw new IllegalArgumentException("Repair order id cannot be null or blank.");
         }
 
-        // Defensive copy on save to prevent external mutation of internal repository state
         RepairOrder storedCopy = copy(order);
         storage.put(id, storedCopy);
-
-        // Defensive copy on return
         return copy(storedCopy);
     }
 
@@ -55,7 +52,6 @@ public class InMemoryRepairOrderRepository implements RepairOrderRepository {
             return Optional.empty();
         }
 
-        // Defensive copy on read so external modifications do not corrupt internal state
         return Optional.of(copy(order));
     }
 

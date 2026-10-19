@@ -6,13 +6,11 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        // 1. Pure Dependency Injection (ручне збирання залежностей без фреймворків)
         RepairOrderRepository repository = new InMemoryRepairOrderRepository();
         BigDecimal minimumTariff = new BigDecimal("300.00");
         PricingPolicy pricingPolicy = new StandardPricingPolicy(minimumTariff);
         RepairOrderService service = new RepairOrderService(repository, pricingPolicy);
 
-        // 2. Створення доменних сутностей: Клієнт (зі знижкою 10%) та Автомобіль
         Client client = new Client(
                 "C-101",
                 "Олександр Мельник",
@@ -27,7 +25,6 @@ public class Main {
                 client
         );
 
-        // 3. Створення замовлення та додавання позицій робіт і деталей
         RepairOrder order = new RepairOrder("RO-2026-001", car, client);
 
         order.addWork(new WorkItem("Комп'ютерна діагностика", new BigDecimal("0.00"), new BigDecimal("500.00")));
@@ -38,15 +35,12 @@ public class Main {
         order.addSparePart(new SparePart("OIL-5W30", "Моторне масло 5W-30 (4л)", "Motul", new BigDecimal("1450.00")));
         order.addSparePart(new SparePart("OF-112", "Масляний фільтр", "Mann", new BigDecimal("350.00")));
 
-        // Реєстрація нового замовлення в сервісі
         service.saveOrder(order);
 
-        // 4. Виклик сервісу для повного розрахунку та закриття замовлення
         OrderCheckoutResult checkoutResult = service.checkoutOrder("RO-2026-001");
         RepairOrder completedOrder = checkoutResult.getOrder();
         BigDecimal finalPrice = checkoutResult.getFinalPrice();
 
-        // 5. Розрахунок аналітики для структурованого чека
         BigDecimal totalWorksCost = BigDecimal.ZERO;
         for (WorkItem work : completedOrder.getWorks()) {
             totalWorksCost = totalWorksCost.add(work.getPartsCost()).add(work.getLaborCost());
@@ -62,7 +56,6 @@ public class Main {
         BigDecimal basePrice = completedOrder.calculateBasePrice();
         BigDecimal discountAmount = basePrice.subtract(finalPrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
-        // 6. Виведення структурованого чека в консоль
         printReceipt(completedOrder, totalWorksCost, totalPartsCost, basePrice, discountAmount, finalPrice, minimumTariff);
     }
 

@@ -58,7 +58,6 @@ class RepairOrderServiceTest {
         assertEquals(expectedFinalPrice, result.getFinalPrice());
         assertEquals(OrderStatus.COMPLETED, result.getOrder().getStatus());
 
-        // Перевірка взаємодій із моками
         verify(repository).findById(orderId);
         verify(pricingPolicy).calculateFinalPrice(testOrder);
         verify(repository).save(testOrder);
@@ -77,7 +76,6 @@ class RepairOrderServiceTest {
 
         assertTrue(exception.getMessage().contains(missingOrderId));
 
-        // Перевірка: розрахунок ціни та збереження НЕ повинні викликатися
         verify(repository).findById(missingOrderId);
         verifyNoInteractions(pricingPolicy);
         verify(repository, never()).save(any());
@@ -95,7 +93,7 @@ class RepairOrderServiceTest {
         BigDecimal actualPrice = service.calculateFinalPrice(orderId);
 
         assertEquals(expectedPrice, actualPrice);
-        assertEquals(OrderStatus.CREATED, testOrder.getStatus()); // статус не змінився
+        assertEquals(OrderStatus.CREATED, testOrder.getStatus());
 
         verify(repository).findById(orderId);
         verify(pricingPolicy).calculateFinalPrice(testOrder);

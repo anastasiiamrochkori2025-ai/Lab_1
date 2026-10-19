@@ -27,9 +27,8 @@ class StandardPricingPolicyTest {
     void shouldApplyClientDiscountCorrectly() {
         client.setDiscountPercentage(new BigDecimal("15.00"));
         RepairOrder order = new RepairOrder("RO-01", car, client);
-        order.addWork(new WorkItem("Ремонт підвіски", new BigDecimal("600.00"), new BigDecimal("400.00"))); // 1000.00
+        order.addWork(new WorkItem("Ремонт підвіски", new BigDecimal("600.00"), new BigDecimal("400.00")));
 
-        // 1000.00 - 15% = 850.00 грн (> мінімального тарифу 300.00)
         BigDecimal finalPrice = pricingPolicy.calculateFinalPrice(order);
 
         assertEquals(new BigDecimal("850.00"), finalPrice);
@@ -40,12 +39,8 @@ class StandardPricingPolicyTest {
     void shouldRoundHalfUpCorrectly() {
         client.setDiscountPercentage(new BigDecimal("10.00"));
         RepairOrder order = new RepairOrder("RO-02", car, client);
-        // Базова вартість: 123.45 грн
-        // Знижка: 123.45 * 0.10 = 12.345 грн -> округлюється HALF_UP до 12.35 грн
-        // Сума після знижки: 123.45 - 12.35 = 111.10 грн
         order.addWork(new WorkItem("Дрібний ремонт", new BigDecimal("73.45"), new BigDecimal("50.00")));
 
-        // Політика з мінімальним тарифом 100.00 грн, щоб перевірити результат 111.10 грн
         PricingPolicy policy = new StandardPricingPolicy(new BigDecimal("100.00"));
         BigDecimal finalPrice = policy.calculateFinalPrice(order);
 
@@ -57,10 +52,8 @@ class StandardPricingPolicyTest {
     void shouldEnforceMinimumOrderPriceThreshold() {
         client.setDiscountPercentage(new BigDecimal("50.00"));
         RepairOrder order = new RepairOrder("RO-03", car, client);
-        // Базова ціна: 200.00 грн
         order.addWork(new WorkItem("Діагностика", BigDecimal.ZERO, new BigDecimal("200.00")));
 
-        // Після знижки 50%: 100.00 грн, але поріг мінімального тарифу: 300.00 грн
         BigDecimal finalPrice = pricingPolicy.calculateFinalPrice(order);
 
         assertEquals(new BigDecimal("300.00"), finalPrice);
@@ -71,7 +64,7 @@ class StandardPricingPolicyTest {
     void shouldReturnBasePriceWhenClientHasZeroDiscount() {
         client.setDiscountPercentage(BigDecimal.ZERO);
         RepairOrder order = new RepairOrder("RO-04", car, client);
-        order.addWork(new WorkItem("Заміна масла", new BigDecimal("300.00"), new BigDecimal("200.00"))); // 500.00 грн
+        order.addWork(new WorkItem("Заміна масла", new BigDecimal("300.00"), new BigDecimal("200.00")));
 
         BigDecimal finalPrice = pricingPolicy.calculateFinalPrice(order);
 

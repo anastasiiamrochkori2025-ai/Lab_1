@@ -27,16 +27,10 @@ public class RepairOrderService {
             throw new IllegalArgumentException("Target order status cannot be null.");
         }
 
-        // 1. Отримання замовлення за id (або викидання EntityNotFoundException)
         RepairOrder order = getOrderById(orderId);
-
-        // 2. Розрахунок підсумкової вартості через PricingPolicy
         BigDecimal finalPrice = pricingPolicy.calculateFinalPrice(order);
-
-        // 3. Зміна статусу замовлення та збереження оновленого стану в репозиторій
         order.setStatus(targetStatus);
         RepairOrder savedOrder = repository.save(order);
-
         return new OrderCheckoutResult(savedOrder, finalPrice);
     }
 
