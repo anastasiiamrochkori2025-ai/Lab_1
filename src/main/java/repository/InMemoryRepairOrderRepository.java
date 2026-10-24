@@ -26,6 +26,6 @@ public class InMemoryRepairOrderRepository implements RepairOrderRepository {
     public List<RepairOrder> findAllByClientId(String clientId) {
         return storage.values().stream()
                 .filter(order -> order.getClient().getId().equals(clientId))
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
     }
 }

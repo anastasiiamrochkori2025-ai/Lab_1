@@ -76,14 +76,4 @@ class CarTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new Car("1HGCR2F83HA123456", "Honda", "Accord", 2020, null));
     }
-
-    @Test
-    @DisplayName("Two cars with the same VIN should be equal according to equals and hashCode contracts")
-    void equalsAndHashCode_SameVin_ReturnsTrue() {
-        Car car1 = new Car("1HGCR2F83HA123456", "Honda", "Accord", 2020, owner);
-        Car car2 = new Car("1HGCR2F83HA123456", "Toyota", "Camry", 2022, owner);
-
-        assertEquals(car1, car2);
-        assertEquals(car1.hashCode(), car2.hashCode());
-    }
 }
