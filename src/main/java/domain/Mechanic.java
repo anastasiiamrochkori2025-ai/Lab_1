@@ -1,17 +1,41 @@
 package domain;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Setter;
-import lombok.AccessLevel;
+import validation.Validation;
 
-@Data
-@EqualsAndHashCode(of = "id")
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+import java.util.Objects;
+
+@Entity
+@Table(name = "mechanics")
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Mechanic {
-    private final String id;
+
+    @Id
+    @Column(name = "id", nullable = false, length = 64)
+    private String id;
+
+    @Column(name = "name", nullable = false, length = 255)
     private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "specialization", nullable = false, length = 32)
     private MechanicSpecialization specialization;
 
+    @Column(name = "available", nullable = false)
     @Setter(AccessLevel.NONE)
     private boolean available = true;
 
@@ -43,5 +67,18 @@ public class Mechanic {
         return specialization == MechanicSpecialization.GENERAL
                 || required == MechanicSpecialization.GENERAL
                 || specialization == required;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Mechanic mechanic = (Mechanic) o;
+        return Objects.equals(id, mechanic.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }

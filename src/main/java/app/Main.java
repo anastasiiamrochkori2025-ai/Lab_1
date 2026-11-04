@@ -38,7 +38,6 @@ public class Main {
         scenarioInvalidOperations(service, shevchenko, electrician);
     }
 
-    // Scenario 1: full lifecycle, 10% discount. Expected: base 5150.00, discount 515.00, total to pay 4635.00.
     private static void scenarioFullLifecycleWithDiscount(RepairOrderService service, ReceiptPrinter printer,
                                                           Client client, Mechanic mechanic) {
         title("Scenario 1: Full lifecycle with a personal discount");
@@ -71,7 +70,6 @@ public class Main {
         printer.print(result);
     }
 
-    // Scenario 2: low total and client with no discount. Expected: base 120.00, minimum threshold -> 300.00.
     private static void scenarioMinimumPrice(RepairOrderService service, ReceiptPrinter printer,
                                              Client client, Mechanic mechanic) {
         title("Scenario 2: Minimum order price threshold applied");
@@ -92,7 +90,6 @@ public class Main {
         printer.print(service.checkout(id));
     }
 
-    // Scenario 3: order cancellation frees the mechanic.
     private static void scenarioCancelFreesMechanic(RepairOrderService service, Client client, Mechanic mechanic) {
         title("Scenario 3: Cancelling order frees the mechanic");
 
@@ -113,16 +110,13 @@ public class Main {
 
     private static void scenarioOrdersByClient(RepairOrderService service, Client client) {
         title("Scenario 4: Search orders for client " + client.getId());
-        for (RepairOrder order : service.getOrdersByClientId(client.getId())) {
-            System.out.println(order.getId() + " - " + order.getStatus());
-        }
+        service.getOrdersByClientId(client.getId())
+                .forEach(order -> System.out.println(order.getId() + " - " + order.getStatus()));
         System.out.println("Orders for client C-999 (non-existent client): "
                 + service.getOrdersByClientId("C-999").size());
         System.out.println();
     }
 
-    // Behavior for non-existent order: repository returns Optional.empty(),
-    // service translates it to NoSuchElementException.
     private static void scenarioMissingOrder(RepairOrderService service) {
         title("Scenario 5: Non-existent order");
         expectFailure("getOrderById(\"NOPE\")", () -> service.getOrderById("NOPE"));

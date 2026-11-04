@@ -2,10 +2,14 @@ package pricing;
 
 import domain.RepairOrder;
 import lombok.Getter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+@Component
 public class StandardPricingPolicy implements PricingPolicy {
     private static final BigDecimal DEFAULT_MINIMUM_ORDER_PRICE = new BigDecimal("500.00");
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
@@ -17,7 +21,8 @@ public class StandardPricingPolicy implements PricingPolicy {
         this(DEFAULT_MINIMUM_ORDER_PRICE);
     }
 
-    public StandardPricingPolicy(BigDecimal minimumOrderPrice) {
+    @Autowired
+    public StandardPricingPolicy(@Value("${pricing.minimum-order-price:500.00}") BigDecimal minimumOrderPrice) {
         if (minimumOrderPrice == null || minimumOrderPrice.signum() < 0) {
             throw new IllegalArgumentException("Minimum order price cannot be null or negative.");
         }

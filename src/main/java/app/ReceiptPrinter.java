@@ -1,8 +1,8 @@
 package app;
 
 import domain.RepairOrder;
-import domain.SparePart;
 import domain.WorkItem;
+import org.springframework.stereotype.Component;
 import pricing.PriceBreakdown;
 import service.OrderCheckoutResult;
 
@@ -10,12 +10,18 @@ import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
+@Component
 public class ReceiptPrinter {
     private static final String DOUBLE_LINE = "=".repeat(79);
     private static final String LINE = "-".repeat(79);
 
     private final PrintStream out;
+
+    public ReceiptPrinter() {
+        this(System.out);
+    }
 
     public ReceiptPrinter(PrintStream out) {
         this.out = Objects.requireNonNull(out, "Output stream cannot be null.");
@@ -42,14 +48,13 @@ public class ReceiptPrinter {
 
         out.println("SERVICES & PARTS:");
         List<WorkItem> works = order.getWorks();
-        for (int i = 0; i < works.size(); i++) {
+        IntStream.range(0, works.size()).forEach(i -> {
             WorkItem work = works.get(i);
             row((i + 1) + ". " + work.getDescription(), work.getLaborCost());
-            for (SparePart part : work.getParts()) {
-                row("     - " + part.getName() + " (" + part.getManufacturer() + ", " + part.getCode() + ")",
-                        part.getPrice());
-            }
-        }
+            work.getParts().forEach(part ->
+                    row("     - " + part.getName() + " (" + part.getManufacturer() + ", " + part.getCode() + ")",
+                            part.getPrice()));
+        });
         out.println(LINE);
 
         row("Total for labor:", order.getLaborTotal());
